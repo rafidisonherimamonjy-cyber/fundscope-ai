@@ -137,7 +137,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _HorizontalOpportunityList extends ConsumerWidget {
-  final FutureProvider<List<FundingCallCard>> provider;
+  final AutoDisposeFutureProvider<List<FundingCallCard>> provider;
   final Future<void> Function(FundingCallCard) onToggleFavorite;
   final String emptyMessage;
 
