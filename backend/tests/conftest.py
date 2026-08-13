@@ -6,15 +6,24 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.main import app
-import app.models  # noqa: F401 - enregistre tous les modèles
+from app import models  # noqa: F401 - enregistre tous les modèles
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    # StaticPool est indispensable ici : TestClient exécute les endpoints (sync)
+    # dans un thread différent de celui du test. Sans lui, chaque thread récupère
+    # une connexion SQLite ":memory:" distincte, donc une base vide sans les tables
+    # créées ci-dessous (erreur "no such table").
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = TestingSessionLocal()

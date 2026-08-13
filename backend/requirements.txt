@@ -14,7 +14,12 @@ python-dotenv==1.0.1
 
 # --- Authentification ---
 PyJWT==2.9.0
-passlib[bcrypt]==1.7.4
+passlib==1.7.4
+# passlib 1.7.4 (dernière version, non maintenue depuis 2020) casse avec bcrypt>=4.1
+# (perte de l'attribut bcrypt.__about__.__version__ utilisé pour la détection de version,
+# ce qui fait échouer le hachage avec "password cannot be longer than 72 bytes" même sur
+# des mots de passe courts). On épingle donc une version de bcrypt encore compatible.
+bcrypt==4.0.1
 python-multipart==0.0.9
 
 # --- IA (optionnel, requis seulement si AI_PROVIDER=openai) ---

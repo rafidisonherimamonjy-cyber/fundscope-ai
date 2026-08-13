@@ -36,7 +36,10 @@ def test_no_match_gives_low_score():
     pref = _preference(sector_ids=[9], country_ids=[9], funding_types=["loan"])
     call = _call()
     score = compute_relevance_score(pref, call)
-    assert score == 0.0
+    # secteur/pays/type ne correspondent pas (0), mais aucune préférence de montant
+    # n'est renseignée -> pas de pénalité sur cette dimension (+15), cohérent avec
+    # test_full_match_gives_max_score et test_international_call_always_matches_country.
+    assert score == 15.0
 
 
 def test_international_call_always_matches_country():
