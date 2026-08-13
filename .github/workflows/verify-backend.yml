@@ -1,0 +1,74 @@
+name: Verify Backend Deployment
+
+# Petit workflow de vérification manuelle : interroge le backend déployé
+# (Render) pour confirmer qu'il répond et que le flux d'inscription/connexion
+# fonctionne (utile car cet environnement CI a un accès réseau que l'agent
+# n'a pas toujours en local). Ne modifie rien, ne publie rien.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL de base du backend (sans /api/v1), ex: https://fundscope-api-cvrg.onrender.com"
+        required: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier /health
+        run: |
+          set -e
+          echo "GET ${{ github.event.inputs.base_url }}/health"
+          code=$(curl -s -o /tmp/health.json -w "%{http_code}" --max-time 60 "${{ github.event.inputs.base_url }}/health")
+          cat /tmp/health.json
+          echo
+          echo "HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::/health n'a pas répondu 200 (le service dort peut-être encore, ou est down)"
+            exit 1
+          fi
+
+      - name: Vérifier /
+        run: |
+          curl -s --max-time 30 "${{ github.event.inputs.base_url }}/" | tee /tmp/root.json
+          echo
+
+      - name: Test inscription + connexion (confirme le fix bcrypt)
+        run: |
+          set -e
+          EMAIL="ci-verify-$(date +%s)@example.com"
+          echo "Inscription avec $EMAIL ..."
+          REG=$(curl -s -o /tmp/register.json -w "%{http_code}" --max-time 30 -X POST "${{ github.event.inputs.base_url }}/api/v1/auth/register" \
+            -H "Content-Type: application/json" \
+            -d "{\"full_name\":\"CI Verify\",\"email\":\"$EMAIL\",\"password\":\"Passw0rd!\",\"organization_name\":\"CI Org\",\"country_id\":1}")
+          echo "HTTP inscription: $REG"
+          cat /tmp/register.json; echo
+          if [ "$REG" != "200" ] && [ "$REG" != "201" ]; then
+            echo "::error::Inscription échouée (HTTP $REG) — voir la réponse ci-dessus"
+            exit 1
+          fi
+
+          echo "Connexion avec $EMAIL ..."
+          LOGIN=$(curl -s -o /tmp/login.json -w "%{http_code}" --max-time 30 -X POST "${{ github.event.inputs.base_url }}/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL\",\"password\":\"Passw0rd!\"}")
+          echo "HTTP connexion: $LOGIN"
+          cat /tmp/login.json; echo
+          if [ "$LOGIN" != "200" ]; then
+            echo "::error::Connexion échouée (HTTP $LOGIN) — le bug bcrypt/passlib est peut-être encore présent (backend pas redéployé ?)"
+            exit 1
+          fi
+          echo "✅ Inscription + connexion OK : l'authentification fonctionne sur ce déploiement."
+
+      - name: Vérifier /api/v1/opportunities (données de seed présentes ?)
+        run: |
+          set -e
+          TOKEN=$(python3 -c "import json;print(json.load(open('/tmp/login.json'))['access_token'])")
+          CODE=$(curl -s -o /tmp/opps.json -w "%{http_code}" --max-time 30 "${{ github.event.inputs.base_url }}/api/v1/opportunities" -H "Authorization: Bearer $TOKEN")
+          echo "HTTP opportunities: $CODE"
+          COUNT=$(python3 -c "import json;print(len(json.load(open('/tmp/opps.json'))))" 2>/dev/null || echo "N/A")
+          echo "Nombre d'appels à projets retournés : $COUNT"
+          if [ "$COUNT" = "0" ] || [ "$COUNT" = "N/A" ]; then
+            echo "::warning::Aucune opportunité trouvée — as-tu bien lancé 'python -m app.seed.seed_data' sur Render ?"
+          fi
