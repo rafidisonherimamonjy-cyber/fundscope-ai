@@ -119,3 +119,32 @@ app/
 ├── static/admin/  tableau de bord admin (HTML/CSS/JS)
 └── main.py        point d'entrée FastAPI
 ```
+
+## 8. Déploiement sur Render
+
+Le dépôt contient un Blueprint Render (`render.yaml` à la racine) qui provisionne
+automatiquement :
+- un service web Python (`fundscope-api`) exécutant `uvicorn app.main:app` ;
+- une base PostgreSQL managée (`fundscope-db`), branchée automatiquement via `DATABASE_URL`.
+
+### Étapes
+
+1. Va sur [dashboard.render.com](https://dashboard.render.com) et connecte-toi (ou crée un compte gratuit).
+2. **New +** → **Blueprint**, puis sélectionne le dépôt GitHub `fundscope-ai`.
+3. Render détecte `render.yaml` et affiche les ressources à créer (service web + base). Clique sur **Apply**.
+4. Le premier build prend quelques minutes (installation des dépendances Python). Une fois terminé, l'URL publique du service est affichée en haut de la page du service, sous la forme :
+   `https://fundscope-api-xxxx.onrender.com`
+5. Va dans l'onglet **Environment** du service pour récupérer les valeurs générées automatiquement pour `SECRET_KEY` et `ADMIN_PASSWORD` (notées-les, notamment `ADMIN_PASSWORD` pour te connecter au tableau de bord admin).
+6. Initialise les données de démonstration : onglet **Shell** du service, puis exécute :
+   ```bash
+   python -m app.seed.seed_data
+   ```
+   (Ceci crée pays/secteurs/bailleurs/appels à projets de démo, ainsi que le compte admin avec le mot de passe généré à l'étape précédente.)
+7. Vérifie que l'API répond : `https://<ton-url>.onrender.com/health` doit retourner `{"status": "ok"}`. La doc interactive est sur `/docs` et le tableau de bord admin sur `/admin`.
+8. Communique cette URL (avec le suffixe `/api/v1`, ex. `https://fundscope-api-xxxx.onrender.com/api/v1`) pour que l'app mobile soit recompilée avec la bonne adresse (voir `.github/workflows/build-apk.yml`, entrée `api_base_url`).
+
+### Notes importantes (plan gratuit Render)
+
+- Le service web gratuit **se met en veille après ~15 min d'inactivité** ; la première requête après une période d'inactivité peut prendre 30-60s (temps de réveil). Pour un usage en production réel, passer sur un plan payant.
+- La base PostgreSQL gratuite Render est **temporaire** (expire après un certain délai, actuellement 30 jours) ; passer sur un plan payant avant expiration pour ne pas perdre les données.
+- Pour activer l'IA réelle (au lieu du mode `mock`) ou les notifications push réelles (FCM), ajoute `OPENAI_API_KEY` / bascule `AI_PROVIDER=openai`, ou `FCM_CREDENTIALS_FILE` / `NOTIFICATION_PROVIDER=fcm` dans l'onglet **Environment** du service Render.

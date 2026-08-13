@@ -1,0 +1,54 @@
+# Blueprint Render pour le backend FundScope AI.
+#
+# Utilisation : sur https://dashboard.render.com -> "New +" -> "Blueprint",
+# puis sélectionnez ce dépôt GitHub. Render détecte ce fichier et crée
+# automatiquement le service web (API FastAPI) et la base PostgreSQL décrits
+# ci-dessous. Voir backend/README.md, section "Déploiement sur Render", pour
+# la procédure complète.
+
+databases:
+  - name: fundscope-db
+    plan: free
+    region: frankfurt
+    databaseName: fundscope
+    user: fundscope_user
+
+services:
+  - type: web
+    name: fundscope-api
+    runtime: python
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fundscope-db
+          property: connectionString
+      - key: CORS_ORIGINS
+        value: '["*"]'
+      - key: AI_PROVIDER
+        value: mock
+      - key: OPENAI_API_KEY
+        value: ""
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: NOTIFICATION_PROVIDER
+        value: mock
+      - key: FCM_CREDENTIALS_FILE
+        value: ""
+      - key: ADMIN_EMAIL
+        value: admin@fundscope.ai
+      - key: ADMIN_PASSWORD
+        generateValue: true
