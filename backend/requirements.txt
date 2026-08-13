@@ -1,0 +1,28 @@
+# --- Framework web ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# --- Base de données ---
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9   # driver PostgreSQL (production)
+
+# --- Validation / config ---
+pydantic==2.9.2
+pydantic-settings==2.5.2
+email-validator==2.2.0
+python-dotenv==1.0.1
+
+# --- Authentification ---
+PyJWT==2.9.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+
+# --- IA (optionnel, requis seulement si AI_PROVIDER=openai) ---
+openai==1.51.0
+
+# --- Notifications push (optionnel, requis seulement si NOTIFICATION_PROVIDER=fcm) ---
+firebase-admin==6.5.0
+
+# --- Tests ---
+pytest==8.3.3
+httpx==0.27.2

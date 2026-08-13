@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FundScope AI — Tableau de bord admin</title>
+<link rel="stylesheet" href="/admin/static/css/styles.css" />
+</head>
+<body>
+
+<!-- Écran de connexion -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-logo">FS</div>
+      <h1>FundScope AI</h1>
+      <p>Tableau de bord administrateur</p>
+    </div>
+    <form id="login-form">
+      <label>Email</label>
+      <input type="email" id="login-email" required placeholder="admin@fundscope.ai" />
+      <label>Mot de passe</label>
+      <input type="password" id="login-password" required placeholder="••••••••" />
+      <button type="submit">Se connecter</button>
+      <p id="login-error" class="error-msg"></p>
+    </form>
+  </div>
+</div>
+
+<!-- Application principale -->
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand-logo small">FS</div>
+    <h2>FundScope AI</h2>
+    <nav>
+      <button class="nav-btn active" data-view="dashboard">📊 Statistiques</button>
+      <button class="nav-btn" data-view="opportunities">📄 Appels à projets</button>
+      <button class="nav-btn" data-view="users">👥 Utilisateurs</button>
+    </nav>
+    <button id="logout-btn" class="logout-btn">Déconnexion</button>
+  </aside>
+
+  <main class="content">
+    <!-- Vue Statistiques -->
+    <section id="view-dashboard" class="view">
+      <h1>Statistiques</h1>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="charts-grid">
+        <div class="card">
+          <h3>Utilisateurs par pays</h3>
+          <div id="chart-users-country" class="bar-chart"></div>
+        </div>
+        <div class="card">
+          <h3>Appels par secteur</h3>
+          <div id="chart-calls-sector" class="bar-chart"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vue Appels à projets -->
+    <section id="view-opportunities" class="view hidden">
+      <div class="view-header">
+        <h1>Appels à projets</h1>
+        <button id="add-opportunity-btn" class="primary-btn">+ Ajouter un appel</button>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Titre</th><th>Secteur</th><th>Pays</th><th>Montant</th><th>Deadline</th><th>Statut</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="opportunities-table-body"></tbody>
+      </table>
+    </section>
+
+    <!-- Vue Utilisateurs -->
+    <section id="view-users" class="view hidden">
+      <h1>Utilisateurs</h1>
+      <table class="data-table">
+        <thead>
+          <tr><th>Nom</th><th>Email</th><th>Organisation</th><th>Pays</th><th>Rôle</th><th>Inscrit le</th></tr>
+        </thead>
+        <tbody id="users-table-body"></tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
+<!-- Modale d'ajout / édition d'un appel à projets -->
+<div id="opportunity-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="modal-title">Nouvel appel à projets</h2>
+    <form id="opportunity-form">
+      <input type="hidden" id="opp-id" />
+      <label>Titre *</label>
+      <input type="text" id="opp-title" required />
+
+      <div class="form-row">
+        <div>
+          <label>Bailleur *</label>
+          <select id="opp-funding-source" required></select>
+        </div>
+        <div>
+          <label>Secteur *</label>
+          <select id="opp-category" required></select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label>Pays cible</label>
+          <select id="opp-country"><option value="">International</option></select>
+        </div>
+        <div>
+          <label>Type de financement</label>
+          <select id="opp-funding-type">
+            <option value="grant">Subvention</option>
+            <option value="loan">Prêt</option>
+            <option value="equity">Investissement</option>
+            <option value="prize">Concours / Prix</option>
+            <option value="technical_assistance">Assistance technique</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label>Montant min (USD)</label>
+          <input type="number" id="opp-amount-min" />
+        </div>
+        <div>
+          <label>Montant max (USD)</label>
+          <input type="number" id="opp-amount-max" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label>Durée (mois)</label>
+          <input type="number" id="opp-duration" />
+        </div>
+        <div>
+          <label>Date limite *</label>
+          <input type="date" id="opp-deadline" required />
+        </div>
+      </div>
+
+      <label>Lien vers le site officiel</label>
+      <input type="url" id="opp-source-url" placeholder="https://..." />
+
+      <label>Texte du TDR (collez ici le texte complet — l'IA en extraira automatiquement l'objectif, l'éligibilité, les documents requis et générera un résumé exécutif)</label>
+      <textarea id="opp-raw-text" rows="6"></textarea>
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="opp-run-ai" checked />
+        Lancer l'analyse IA automatique à l'enregistrement
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" id="cancel-opportunity-btn" class="secondary-btn">Annuler</button>
+        <button type="submit" class="primary-btn">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/admin/static/js/app.js"></script>
+</body>
+</html>

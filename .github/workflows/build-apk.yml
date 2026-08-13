@@ -1,0 +1,91 @@
+name: Build & Release Android APK
+
+# Ce workflow compile l'application Flutter en APK Android et le publie
+# automatiquement en tant que "Release" GitHub, ce qui fournit un lien de
+# téléchargement direct et stable (aucune installation locale de Flutter
+# n'est nécessaire : tout se passe dans le cloud GitHub Actions).
+#
+# Déclenchement :
+#   - manuellement, depuis l'onglet "Actions" du dépôt (bouton "Run workflow"),
+#     en renseignant éventuellement l'URL de votre backend ;
+#   - automatiquement à chaque push sur "main" qui modifie le dossier frontend/.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "URL de base de l'API backend (ex: https://mon-api.example.com/api/v1)"
+        required: false
+        default: "https://api.fundscope.example.com/api/v1"
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/build-apk.yml"
+
+permissions:
+  contents: write  # nécessaire pour que le workflow puisse publier une Release avec l'APK en pièce jointe
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Récupérer le code source
+        uses: actions/checkout@v4
+
+      - name: Configurer Java (requis par Gradle/Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Configurer le SDK Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: Générer les dossiers natifs Android (android/)
+        run: flutter create . --platforms=android --org com.fundscope
+
+      - name: Installer les dépendances Dart
+        run: flutter pub get
+
+      - name: Déterminer l'URL de l'API à utiliser dans le build
+        id: api_url
+        run: |
+          echo "value=${{ github.event.inputs.api_base_url || 'https://api.fundscope.example.com/api/v1' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Compiler l'APK (release)
+        run: flutter build apk --release --dart-define=API_BASE_URL=${{ steps.api_url.outputs.value }}
+
+      - name: Préparer le fichier APK à publier
+        run: |
+          mkdir -p ../dist
+          cp build/app/outputs/flutter-apk/app-release.apk ../dist/fundscope-ai-${{ github.run_number }}.apk
+
+      - name: Publier une Release GitHub avec l'APK en pièce jointe
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: "FundScope AI — build ${{ github.run_number }}"
+          body: |
+            APK généré automatiquement par GitHub Actions.
+
+            **URL de l'API configurée pour ce build :** `${{ steps.api_url.outputs.value }}`
+
+            ⚠️ Cet APK est signé avec une clé de debug (suffisant pour tester en sideload).
+            Pour une publication sur le Play Store, configurez une vraie clé de signature
+            (voir frontend/README.md).
+          files: dist/fundscope-ai-${{ github.run_number }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publier aussi comme artefact du run (accès rapide sans Release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fundscope-ai-apk
+          path: dist/fundscope-ai-${{ github.run_number }}.apk

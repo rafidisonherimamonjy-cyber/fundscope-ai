@@ -1,0 +1,27 @@
+# --- Backend (Python) ---
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.db
+backend/.env
+backend/.pytest_cache/
+*.pyc
+
+# --- Frontend (Flutter) ---
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/build/
+frontend/android/
+frontend/ios/
+frontend/web/
+frontend/linux/
+frontend/macos/
+frontend/windows/
+frontend/*.iml
+frontend/.idea/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
