@@ -53,7 +53,9 @@ jobs:
 
           # Récupère un country_id réellement présent en base plutôt que de
           # supposer que l'id 1 existe (dépend de l'ordre/contenu du seed).
-          curl -s --max-time 30 "$BASE/api/v1/reference/countries" -o /tmp/countries.json
+          # Note: le routeur reference.py n'a pas de préfixe "/reference",
+          # il est monté directement sous /api/v1 (voir app/main.py).
+          curl -s --max-time 30 "$BASE/api/v1/countries" -o /tmp/countries.json
           echo "Pays disponibles :"; cat /tmp/countries.json; echo
           COUNTRY_ID=$(python3 -c "import json;print(json.load(open('/tmp/countries.json'))[0]['id'])" 2>/dev/null || echo "")
           if [ -z "$COUNTRY_ID" ]; then
