@@ -47,6 +47,14 @@ def on_startup():
     """
     Base.metadata.create_all(bind=engine)
 
+    # Auto-seed si la base est vide (ex: premier démarrage sur un nouvel
+    # environnement type Render, où l'accès Shell manuel n'est pas toujours
+    # disponible). `seed()` est idempotent : il ne fait rien si des pays
+    # existent déjà, donc c'est sans danger de l'appeler à chaque démarrage.
+    from app.seed.seed_data import seed
+
+    seed()
+
 
 # --- Fichiers statiques du tableau de bord admin ---------------------------
 app.mount("/admin/static", StaticFiles(directory="app/static/admin"), name="admin-static")
