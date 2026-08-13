@@ -17,6 +17,10 @@ on:
         description: "URL de base de l'API backend (ex: https://mon-api.example.com/api/v1)"
         required: false
         default: "https://api.fundscope.example.com/api/v1"
+      verify_backend_url:
+        description: "(Optionnel) Renseignez cette URL (ex: https://fundscope-api-cvrg.onrender.com, SANS /api/v1) pour uniquement vérifier que le backend déployé répond, au lieu de compiler l'APK. Laissez vide pour un build normal."
+        required: false
+        default: ""
   push:
     branches: [main]
     paths:
@@ -27,7 +31,49 @@ permissions:
   contents: write  # nécessaire pour que le workflow puisse publier une Release avec l'APK en pièce jointe
 
 jobs:
+  verify-backend:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.verify_backend_url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier /health
+        run: |
+          set -e
+          BASE="${{ github.event.inputs.verify_backend_url }}"
+          echo "GET $BASE/health"
+          code=$(curl -s -o /tmp/health.json -w "%{http_code}" --max-time 60 "$BASE/health")
+          cat /tmp/health.json; echo
+          echo "HTTP $code"
+          [ "$code" = "200" ] || { echo "::error::/health n'a pas répondu 200 (service endormi/down ?)"; exit 1; }
+
+      - name: Test inscription + connexion (confirme le fix bcrypt/passlib)
+        run: |
+          set -e
+          BASE="${{ github.event.inputs.verify_backend_url }}"
+          EMAIL="ci-verify-$(date +%s)@example.com"
+          REG=$(curl -s -o /tmp/register.json -w "%{http_code}" --max-time 30 -X POST "$BASE/api/v1/auth/register" \
+            -H "Content-Type: application/json" \
+            -d "{\"full_name\":\"CI Verify\",\"email\":\"$EMAIL\",\"password\":\"Passw0rd!\",\"organization_name\":\"CI Org\",\"country_id\":1}")
+          echo "HTTP inscription: $REG"; cat /tmp/register.json; echo
+          [ "$REG" = "200" ] || [ "$REG" = "201" ] || { echo "::error::Inscription échouée (HTTP $REG)"; exit 1; }
+
+          LOGIN=$(curl -s -o /tmp/login.json -w "%{http_code}" --max-time 30 -X POST "$BASE/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL\",\"password\":\"Passw0rd!\"}")
+          echo "HTTP connexion: $LOGIN"; cat /tmp/login.json; echo
+          [ "$LOGIN" = "200" ] || { echo "::error::Connexion échouée (HTTP $LOGIN) — backend pas encore redéployé avec le fix ?"; exit 1; }
+          echo "✅ Inscription + connexion OK."
+
+      - name: Vérifier les données de démonstration (seed)
+        run: |
+          TOKEN=$(python3 -c "import json;print(json.load(open('/tmp/login.json'))['access_token'])")
+          BASE="${{ github.event.inputs.verify_backend_url }}"
+          curl -s -o /tmp/opps.json -w "HTTP opportunities: %{http_code}\n" --max-time 30 "$BASE/api/v1/opportunities" -H "Authorization: Bearer $TOKEN"
+          COUNT=$(python3 -c "import json;print(len(json.load(open('/tmp/opps.json'))))" 2>/dev/null || echo "N/A")
+          echo "Nombre d'appels à projets : $COUNT"
+          [ "$COUNT" != "0" ] && [ "$COUNT" != "N/A" ] || echo "::warning::Aucune opportunité — as-tu lancé 'python -m app.seed.seed_data' sur Render ?"
+
   build-and-release:
+    if: github.event_name == 'push' || github.event.inputs.verify_backend_url == ''
     runs-on: ubuntu-latest
     defaults:
       run:
