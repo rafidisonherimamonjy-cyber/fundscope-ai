@@ -50,9 +50,21 @@ jobs:
           set -e
           BASE="${{ github.event.inputs.verify_backend_url }}"
           EMAIL="ci-verify-$(date +%s)@example.com"
+
+          # Récupère un country_id réellement présent en base plutôt que de
+          # supposer que l'id 1 existe (dépend de l'ordre/contenu du seed).
+          curl -s --max-time 30 "$BASE/api/v1/reference/countries" -o /tmp/countries.json
+          echo "Pays disponibles :"; cat /tmp/countries.json; echo
+          COUNTRY_ID=$(python3 -c "import json;print(json.load(open('/tmp/countries.json'))[0]['id'])" 2>/dev/null || echo "")
+          if [ -z "$COUNTRY_ID" ]; then
+            echo "::error::Impossible de récupérer un country_id valide — la table 'countries' est-elle vide (seed non exécuté) ?"
+            exit 1
+          fi
+          echo "Utilisation de country_id=$COUNTRY_ID"
+
           REG=$(curl -s -o /tmp/register.json -w "%{http_code}" --max-time 30 -X POST "$BASE/api/v1/auth/register" \
             -H "Content-Type: application/json" \
-            -d "{\"full_name\":\"CI Verify\",\"email\":\"$EMAIL\",\"password\":\"Passw0rd!\",\"organization_name\":\"CI Org\",\"country_id\":1}")
+            -d "{\"full_name\":\"CI Verify\",\"email\":\"$EMAIL\",\"password\":\"Passw0rd!\",\"organization_name\":\"CI Org\",\"country_id\":$COUNTRY_ID}")
           echo "HTTP inscription: $REG"; cat /tmp/register.json; echo
           [ "$REG" = "200" ] || [ "$REG" = "201" ] || { echo "::error::Inscription échouée (HTTP $REG)"; exit 1; }
 
