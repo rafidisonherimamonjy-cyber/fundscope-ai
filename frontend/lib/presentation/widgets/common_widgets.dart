@@ -69,6 +69,12 @@ class AppTextField extends StatelessWidget {
           obscureText: obscureText,
           keyboardType: keyboardType,
           validator: validator,
+          // Désactive la saisie automatique (autofill) de la plateforme :
+          // sur certains appareils Android (notamment Samsung), le panneau
+          // de suggestions d'autofill de Flutter peut s'afficher comme un
+          // grand rectangle gris qui recouvre tout l'écran et ne se charge
+          // jamais (bug connu du framework, cf. flutter/flutter#89925).
+          autofillHints: null,
           decoration: InputDecoration(hintText: hint, suffixIcon: suffixIcon),
         ),
       ],
